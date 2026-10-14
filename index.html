@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en" data-theme="night">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Soccer Hex Heatmap</title>
+<style>
+:root{
+  --bg:#ffffff; --panel:#f4f4f2; --ink:#121212; --ink-2:#5c5c58; --ink-3:#8d8d88;
+  --rule:#dcdcd6; --zero:#e3e1d8; --accent:#121212;
+  --tip-bg:#121212; --tip-ink:#fff;
+  --pitch:#050607; --line:rgba(255,255,255,.2); --pitch-ink:rgba(255,255,255,.42);
+}
+:root[data-theme="night"]{
+  --bg:#0b0d0e; --panel:#15181a; --ink:#eef1ee; --ink-2:#a3aaa6; --ink-3:#6b7370;
+  --rule:#24292b; --zero:#2f3a34; --accent:#eef1ee;
+  --tip-bg:#eef1ee; --tip-ink:#0b0d0e;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif;transition:background .3s,color .3s}
+.wrap{max-width:1280px;margin:0 auto;padding:28px 24px 48px}
+header h1{font:700 26px/1.15 Georgia,"Times New Roman",serif;margin:0 0 6px;letter-spacing:-.01em}
+header p{margin:0;color:var(--ink-2);max-width:720px}
+.toprow{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px}
+@media (max-width:980px){.layout{grid-template-columns:1fr}}
+
+/* player tabs */
+.players{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.ptab{border:1px solid var(--rule);background:transparent;color:var(--ink);border-radius:999px;padding:6px 12px 6px 6px;cursor:pointer;display:flex;align-items:center;gap:8px;font:inherit;font-size:13px;transition:all .15s}
+.ptab:hover{border-color:var(--ink-3)}
+.ptab .n{width:22px;height:22px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font-size:11px;font-weight:700}
+.ptab.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.ptab.on .n{background:var(--bg);color:var(--ink)}
+
+/* title bar like reference */
+.bar{background:var(--panel);padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+.bar h2{margin:0;font-size:19px;font-weight:700}
+.bar .pos{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.stats{display:flex;flex-wrap:wrap;gap:0;margin:10px 0 6px}
+.stat{padding:2px 14px;border-left:1px solid var(--rule);display:flex;align-items:baseline;gap:8px}
+.stat:first-child{border-left:0;padding-left:0}
+.stat .k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.stat .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* controls */
+.controls{display:flex;flex-wrap:wrap;gap:16px 22px;margin:14px 0 8px;align-items:center}
+.ctl{display:flex;align-items:center;gap:8px}
+.ctl label{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:12px;padding:5px 10px;cursor:pointer;border-left:1px solid var(--rule)}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--accent);color:var(--bg)}
+
+/* pitch */
+.pitchwrap{position:relative;margin-top:6px}
+svg#pitch{width:100%;height:auto;display:block}
+.pitch-bg{fill:var(--pitch);transition:fill .3s}
+.lines *{fill:none;stroke:var(--line);stroke-width:.22;transition:stroke .3s}
+.lines .spot{fill:var(--line);stroke:none}
+.zones line{stroke:var(--pitch-ink);stroke-width:.12;stroke-dasharray:.8 .8;opacity:.8}
+.zones text{fill:var(--pitch-ink);font-size:1.5px;letter-spacing:.1px;text-transform:uppercase}
+.hex{transition:transform .55s cubic-bezier(.2,.7,.2,1),fill .55s,opacity .35s}
+.hit{fill:transparent;cursor:pointer}
+.hit:hover{stroke:#fff;stroke-width:.25;vector-effect:non-scaling-stroke}
+.sel{fill:none;stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke;pointer-events:none}
+.dir text{fill:var(--pitch-ink);font-size:1.6px;letter-spacing:.12px}
+.dir path{stroke:var(--pitch-ink);stroke-width:.18;fill:none}
+.marker circle{fill:#fff;stroke:#050607;stroke-width:.35}
+.marker text{fill:#050607;font-size:1.7px;font-weight:700;text-anchor:middle;dominant-baseline:central}
+.marker{transition:transform .55s cubic-bezier(.2,.7,.2,1);pointer-events:none}
+.range{accent-color:var(--ink);width:110px}
+.tip{position:absolute;pointer-events:none;background:var(--tip-bg);color:var(--tip-ink);padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.35;white-space:nowrap;opacity:0;transform:translate(-50%,calc(-100% - 12px));transition:opacity .12s}
+.tip b{font-variant-numeric:tabular-nums}
+.tip .z{opacity:.7;font-size:11px;margin-bottom:3px}
+.desc{margin:12px 0 0;max-width:760px;color:var(--ink)}
+
+/* sidebar */
+aside{display:flex;flex-direction:column;gap:22px}
+.card h3{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px;font-weight:600;border-bottom:1px solid var(--rule);padding-bottom:6px}
+.ramp{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0}
+.ramp div{width:16px;height:16px;border-radius:50%;transition:transform .15s}
+.ramp div:hover{transform:scale(1.3)}
+.ramp-lab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums}
+.leg-title{font-size:12.5px;margin:0 0 6px}
+.leg-title b{font-weight:700}
+.sizes{display:flex;align-items:flex-end;gap:16px;margin-top:4px}
+.sizes figure{margin:0;text-align:center;font-size:11px;color:var(--ink-2)}
+.sizes svg{display:block;margin:0 auto 3px}
+.hint{font-size:11.5px;color:var(--ink-3);margin-top:8px}
+.quad{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.quad div{background:var(--panel);border-radius:6px;padding:8px;font-size:11.5px;color:var(--ink-2);display:flex;gap:8px;align-items:flex-start}
+.quad div b{color:var(--ink);display:block;font-size:12px}
+.quad svg{flex:none;margin-top:2px}
+dl.defs{margin:0}
+dl.defs dt{font-weight:700;font-size:12.5px;margin-top:8px}
+dl.defs dt:first-child{margin-top:0}
+dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
+.detail-empty{font-size:12.5px;color:var(--ink-3);background:var(--panel);border-radius:6px;padding:14px;text-align:center}
+.zone-name{font-size:16px;font-weight:700;margin:0 0 2px}
+.zone-sub{font-size:11.5px;color:var(--ink-3);margin-bottom:10px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-bottom:12px}
+.kv .k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.kv .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.kv .v small{font-size:11px;font-weight:400;color:var(--ink-2);margin-left:3px}
+.stack{display:flex;height:10px;border-radius:2px;overflow:hidden;background:var(--panel);margin:4px 0 6px}
+.stack div{height:100%}
+.acts{display:grid;grid-template-columns:repeat(2,1fr);gap:2px 10px;font-size:11.5px;color:var(--ink-2)}
+.acts span i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
+.clear{margin-top:10px;font:inherit;font-size:11.5px;background:none;border:0;color:var(--ink-2);text-decoration:underline;cursor:pointer;padding:0}
+@media (max-width:600px){.wrap{padding:18px 16px 36px}.stat{padding:2px 10px}.stat .v{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toprow">
+    <header>
+      <h1>Where the ball finds them — and where they live</h1>
+      <p>Hex heatmap of one team, built from simulated match data. <b>Color</b> encodes touches in a zone; <b>size</b> encodes coverage — how much on-pitch time the player spends there. Attacking left → right.</p>
+    </header>
+    <div class="ctl">
+      <label>Theme</label>
+      <div class="seg" id="themeSeg"><button data-v="paper">Paper</button><button data-v="night" class="on">Night</button></div>
+    </div>
+  </div>
+
+  <div class="players" id="players"></div>
+
+  <div class="layout">
+    <main>
+      <div class="bar"><h2 id="pName"></h2><span class="pos" id="pPos"></span></div>
+      <div class="stats" id="stats"></div>
+
+      <div class="controls">
+        <div class="ctl"><label>Sample</label>
+          <div class="seg" id="sampleSeg"><button data-v="match">Last match</button><button data-v="last5" class="on">Last 5</button><button data-v="season">Season</button></div></div>
+        <div class="ctl"><label>Hex</label>
+          <div class="seg" id="resSeg"><button data-v="1.5">S</button><button data-v="2.1" class="on">M</button><button data-v="3">L</button></div></div>
+        <div class="ctl"><label>Encoding</label>
+          <div class="seg" id="encSeg"><button data-v="std" class="on">Color Touch · Size Cov.</button><button data-v="swap">Swap</button></div></div>
+        <div class="ctl"><label>Zones</label>
+          <div class="seg" id="zoneSeg"><button data-v="off" class="on">Off</button><button data-v="on">On</button></div></div>
+        <div class="ctl"><label>Merge</label>
+          <div class="seg" id="mergeSeg"><button data-v="off">Off</button><button data-v="on" class="on">On</button></div></div>
+        <div class="ctl"><label>Shadow</label>
+          <div class="seg" id="shadowSeg"><button data-v="off">Off</button><button data-v="on" class="on">On</button></div></div>
+        <div class="ctl"><label>Size contrast</label>
+          <div class="seg" id="sizeSeg"><button data-v="0.6">Low</button><button data-v="1" class="on">Mid</button><button data-v="1.7">High</button></div></div>
+        <div class="ctl"><label for="thr">Threshold</label>
+          <input class="range" id="thr" type="range" min="0" max="0.6" step="0.02" value="0.36"></div>
+      </div>
+
+      <div class="pitchwrap" id="pitchwrap">
+        <svg id="pitch" viewBox="-3 -3.5 111 76" aria-label="Soccer pitch hex heatmap">
+          <rect class="pitch-bg" x="-3" y="-3.5" width="111" height="76" rx="1.6"/>
+          <defs>
+            <!-- subtle colored halo + soft drop shadow -->
+            <filter id="fShadow" filterUnits="userSpaceOnUse" x="-10" y="-10" width="125" height="90">
+              <feGaussianBlur in="SourceGraphic" stdDeviation=".45" result="halo"/>
+              <feComponentTransfer in="halo" result="haloA"><feFuncA type="linear" slope=".55"/></feComponentTransfer>
+              <feOffset in="SourceAlpha" dy=".25" result="off"/>
+              <feGaussianBlur in="off" stdDeviation=".3" result="offB"/>
+              <feComponentTransfer in="offB" result="drop"><feFuncA type="linear" slope=".6"/></feComponentTransfer>
+              <feMerge><feMergeNode in="drop"/><feMergeNode in="haloA"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <!-- blob gradient: field is drawn in grayscale (gray = value), blurred, alpha forced opaque,
+                 then mapped through the color ramp so blends stay on-ramp instead of mixing RGB -->
+            <filter id="fBlend" filterUnits="userSpaceOnUse" x="-10" y="-10" width="125" height="90" color-interpolation-filters="sRGB">
+              <feGaussianBlur id="fBlendStd" stdDeviation="1.4"/>
+              <feComponentTransfer><feFuncA type="linear" slope="8"/></feComponentTransfer>
+              <feComponentTransfer id="fRamp"></feComponentTransfer>
+            </filter>
+            <clipPath id="blobClip"></clipPath>
+          </defs>
+          <g id="heat" filter="url(#fShadow)">
+            <g id="blobs" clip-path="url(#blobClip)" style="transition:opacity .35s"><g id="blobField" filter="url(#fBlend)"></g></g>
+            <g id="hexes"></g>
+          </g>
+          <g class="lines" id="lines"></g>
+          <g class="zones" id="zones" style="display:none"></g>
+          <g id="markers"></g>
+          <g class="dir"><path d="M46 70.6 H59 M57.6 69.9 L59 70.6 L57.6 71.3"/><text x="44.8" y="71.15" text-anchor="end">ATTACK</text></g>
+          <g id="hits"></g>
+          <path id="sel" class="sel" style="display:none"/>
+        </svg>
+        <div class="tip" id="tip"></div>
+      </div>
+      <p class="desc" id="desc"></p>
+    </main>
+
+    <aside>
+      <section class="card">
+        <h3>Zone detail</h3>
+        <div id="detail"></div>
+      </section>
+
+      <section class="card">
+        <h3>Legend</h3>
+        <p class="leg-title" id="colorTitle"><b>Color</b> · Touches per 90 in hex</p>
+        <div class="ramp" id="ramp"></div>
+        <div class="ramp-lab" id="rampLab"></div>
+        <p class="leg-title" style="margin-top:14px" id="sizeTitle"><b>Size</b> · Coverage (share of on-pitch time)</p>
+        <div class="sizes" id="sizes"></div>
+        <div class="hint">Hover a color step to isolate those zones. Click any hex to pin it.</div>
+      </section>
+
+      <section class="card">
+        <h3>How to read it</h3>
+        <div class="quad" id="quad"></div>
+      </section>
+
+      <section class="card">
+        <h3>Attributes</h3>
+        <dl class="defs">
+          <dt>Touch</dt><dd>Every on-ball event logged at its pitch location — passes, receptions, carries, shots, tackles, clearances. Counted per hex, normalised per 90 minutes.</dd>
+          <dt>Coverage</dt><dd>Share of the player's on-pitch time their tracked position sat inside the hex (from 25 Hz positional data). Only zones with touches above the threshold (relative to the player's busiest hex) are drawn, so the map shows where the player is active rather than filling the pitch.</dd>
+          <dt>Core area</dt><dd>Smallest set of hexes holding 80% of the player's time, in m².</dd>
+          <dt>Avg. position</dt><dd>Touch-weighted centroid, shown as the numbered marker.</dd>
+        </dl>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ---------- data model (simulated) ---------- */
+const L = 105, W = 68;
+// anchors: [x, y, spreadX, spreadY, weight] in metres; x toward opponent goal, y=0 is the left touchline
+const PLAYERS = [
+  {id:'gk', num:1,  name:'Mateo Okafor',  pos:'Goalkeeper',          tp90:36, dist:5.4,  acc:79,
+   a:[[5.5,34,3,6,1],[14,34,4,11,.25]],
+   desc:'Rarely leaves the box. Distribution clusters on the edge of the area; the faint wide hexes are sweeping runs behind a high line.'},
+  {id:'lb', num:3,  name:'Jonas Varga',   pos:'Left back',            tp90:72, dist:10.9, acc:84,
+   a:[[34,7,13,4.5,1],[62,5,12,3.5,.8],[86,9,7,5,.35]],
+   desc:'Owns the entire left touchline. Coverage runs long and thin; the hot spots in the final third are overlapping crosses.'},
+  {id:'cb', num:5,  name:'Idris Mensah',  pos:'Centre back',          tp90:68, dist:9.8,  acc:91,
+   a:[[27,44,8,6,1],[42,40,7,8,.55]],
+   desc:'Compact footprint. Most touches are build-up passes from the right half-space; he steps into midfield only when pressing is off.'},
+  {id:'dm', num:6,  name:'Lucas Brandt',  pos:'Defensive midfielder', tp90:88, dist:11.8, acc:90,
+   a:[[44,34,10,9,1],[60,32,10,10,.6],[33,30,6,6,.3]],
+   desc:'The hub. A broad central footprint with the densest touch zone of the side, dropping between the centre backs to start play.'},
+  {id:'am', num:10, name:'Rafael Souza',  pos:'Attacking midfielder', tp90:66, dist:11.2, acc:82,
+   a:[[71,34,9,9,1],[84,41,6,6,.6],[77,21,7,5,.45]],
+   desc:'Lives between the lines. Prefers the right half-space just outside the box; drifts left to overload with the full back.'},
+  {id:'rw', num:7,  name:'Kai Nakamura',  pos:'Right winger',         tp90:54, dist:10.6, acc:77,
+   a:[[73,61,11,4.5,1],[92,56,5,5,.75],[97,40,3.5,5,.35]],
+   desc:'Holds the width high and right. Coverage is wide; touches spike at the byline and on the cut-inside toward the far post.'},
+  {id:'st', num:9,  name:'Elias Moreau',  pos:'Striker',              tp90:32, dist:9.9,  acc:71,
+   a:[[93,34,5,7,1],[78,34,7,9,.55],[100,34,2.5,4.5,.5]],
+   desc:'Few touches, all of them close to goal. Big pale hexes at the halfway line are pressing duty; the small red ones are the six-yard box.'},
+];
+const TEAM = {id:'team', num:'', name:'Team overview', pos:'Seven tracked players', desc:'Combined footprint of the tracked players. The side builds through the centre and attacks down the left; the right is used for width rather than possession.'};
+const SAMPLES = {match:{n:1,label:'Last match'}, last5:{n:5,label:'Last 5'}, season:{n:38,label:'Season'}};
+
+function hashStr(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const dens=(a,x,y)=>a.reduce((s,[ax,ay,sx,sy,w])=>s+w*Math.exp(-((x-ax)**2/(2*sx*sx)+(y-ay)**2/(2*sy*sy))),0);
+
+const IN_BOX=(x,y)=>x>88.5&&y>13.84&&y<54.16;
+
+function buildGrid(R){
+  const w=Math.sqrt(3)*R, h=1.5*R;
+  const nR=Math.floor((W-R*.2)/h)+1, nC=Math.floor((L-w*.5)/w)+1;
+  const y0=(W-(nR-1)*h)/2, x0=(L-(nC-1)*w-w/2)/2;
+  const cells=[];
+  for(let r=0;r<nR;r++)for(let c=0;c<nC;c++){
+    cells.push({i:cells.length,x:x0+c*w+(r%2?w/2:0),y:y0+r*h});
+  }
+  return cells;
+}
+
+const cache={};
+function generate(p,sampleKey,R){
+  const key=p.id+sampleKey+R;
+  if(cache[key])return cache[key];
+  const n=SAMPLES[sampleKey].n, r=rng(hashStr(key));
+  const grid=buildGrid(R);
+  const covA = p.id==='gk' ? p.a.map(([x,y,sx,sy,w])=>[x,y,sx*1.6,sy*1.4,w])
+    : [...p.a.map(([x,y,sx,sy,w])=>[x,y,sx*1.7,sy*1.5,w]),
+       ...p.a.map(([x,y,sx,sy,w])=>[Math.max(8,x-14),y*.75+34*.25,sx*1.8,sy*1.6,w*.45])];
+  const noise=.55/Math.sqrt(n);
+  // coverage
+  let covSum=0;
+  const cov=grid.map(c=>{const v=dens(covA,c.x,c.y)*Math.exp(noise*gauss(r));covSum+=v;return v});
+  // touch density, then multinomial sample
+  const td=grid.map((c,i)=>dens(p.a,c.x,c.y)*Math.exp(noise*1.3*gauss(r))*(.4+.6*Math.min(1,cov[i]/ (covSum/grid.length*3))));
+  const cum=[];let acc=0;for(const v of td){acc+=v;cum.push(acc)}
+  const N=Math.round(p.tp90*n*(1+.08*gauss(r)));
+  const cells=grid.map((c,i)=>({...c,cov:cov[i]/covSum,t:0,pass:0,carry:0,shot:0,def:0,ok:0}));
+  for(let k=0;k<N;k++){
+    const u=r()*acc;let lo=0,hi=cum.length-1;
+    while(lo<hi){const m=(lo+hi)>>1;if(cum[m]<u)lo=m+1;else hi=m}
+    const c=cells[lo];c.t++;
+    const shotP=IN_BOX(c.x,c.y)?(p.id==='st'?.3:.16):c.x>75?.035:0;
+    const defP=c.x<52.5?.26:.1, carryP=p.id==='rw'||p.id==='lb'?.26:.18;
+    const q=r();
+    if(q<shotP)c.shot++;else if(q<shotP+defP)c.def++;else if(q<shotP+defP+carryP)c.carry++;else c.pass++;
+    if(r()<.93-.3*(c.x/L)+(p.acc-80)/200)c.ok++;
+  }
+  const out={cells,n,N,R};
+  cache[key]=out;return out;
+}
+function generateTeam(sampleKey,R){
+  const parts=PLAYERS.map(p=>generate(p,sampleKey,R));
+  const n=SAMPLES[sampleKey].n;
+  const cells=parts[0].cells.map((c,i)=>{
+    const o={i:c.i,x:c.x,y:c.y,cov:0,t:0,pass:0,carry:0,shot:0,def:0,ok:0};
+    for(const pt of parts){const s=pt.cells[i];o.cov+=s.cov/parts.length;for(const k of['t','pass','carry','shot','def','ok'])o[k]+=s[k]}
+    return o;
+  });
+  return {cells,n,N:cells.reduce((s,c)=>s+c.t,0),R};
+}
+
+/* ---------- color ---------- */
+const RAMP=['#3f51c1','#4b7fd6','#3fbff2','#74cbe3','#f7d93b','#f39a33','#ec6a2e','#e5332a'];
+function hex2rgb(h){return[1,3,5].map(i=>parseInt(h.slice(i,i+2),16))}
+const RAMP_RGB=RAMP.map(hex2rgb);
+function rampColor(t){
+  t=Math.max(0,Math.min(1,t))*(RAMP.length-1);
+  const i=Math.min(RAMP.length-2,Math.floor(t)),f=t-i,a=RAMP_RGB[i],b=RAMP_RGB[i+1];
+  return`rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*f)).join(',')})`;
+}
+const grayOf=t=>{const v=Math.round(Math.max(0,Math.min(1,t))*255);return`rgb(${v},${v},${v})`};
+const quantile=(arr,q)=>{if(!arr.length)return 1;const s=[...arr].sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.floor(q*(s.length-1)))]};
+
+/* ---------- pitch drawing ---------- */
+const NS='http://www.w3.org/2000/svg';
+const el=(tag,attrs={},parent)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent&&parent.appendChild(e);return e};
+function drawPitch(){
+  const g=document.getElementById('lines');
+  el('rect',{x:0,y:0,width:L,height:W},g);
+  el('line',{x1:L/2,y1:0,x2:L/2,y2:W},g);
+  el('circle',{cx:L/2,cy:W/2,r:9.15},g);
+  el('circle',{class:'spot',cx:L/2,cy:W/2,r:.35},g);
+  for(const side of[0,1]){
+    const X=v=>side?L-v:v;
+    el('rect',{x:side?L-16.5:0,y:13.84,width:16.5,height:40.32},g);
+    el('rect',{x:side?L-5.5:0,y:24.84,width:5.5,height:18.32},g);
+    el('rect',{x:side?L:-1.6,y:30.34,width:1.6,height:7.32},g);
+    el('circle',{class:'spot',cx:X(11),cy:W/2,r:.35},g);
+    el('path',{d:`M${X(16.5)} ${W/2-7.31} A9.15 9.15 0 0 ${side?0:1} ${X(16.5)} ${W/2+7.31}`},g);
+  }
+  for(const[cx,cy,sw]of[[0,0,'M1 0 A1 1 0 0 1 0 1'],[L,0,`M${L-1} 0 A1 1 0 0 0 ${L} 1`],[0,W,`M0 ${W-1} A1 1 0 0 1 1 ${W}`],[L,W,`M${L} ${W-1} A1 1 0 0 1 ${L-1} ${W}`]])el('path',{d:sw},g);
+  const z=document.getElementById('zones');
+  for(const x of[35,70])el('line',{x1:x,y1:0,x2:x,y2:W},z);
+  for(const y of[13.84,24.84,43.16,54.16])el('line',{x1:0,y1:y,x2:L,y2:y},z);
+  [['DEFENSIVE THIRD',17.5],['MIDDLE THIRD',52.5],['ATTACKING THIRD',87.5]].forEach(([t,x])=>{const e=el('text',{x,y:-1,'text-anchor':'middle'},z);e.textContent=t});
+}
+const UNIT_HEX=(()=>{let d='';for(let i=0;i<6;i++){const a=Math.PI/180*(30+60*i);d+=(i?'L':'M')+Math.cos(a).toFixed(4)+' '+Math.sin(a).toFixed(4)}return d+'Z'})();
+const hexPath=(x,y,R)=>{let d='';for(let i=0;i<6;i++){const a=Math.PI/180*(30+60*i);d+=(i?'L':'M')+(x+R*Math.cos(a)).toFixed(3)+' '+(y+R*Math.sin(a)).toFixed(3)}return d+'Z'};
+
+function zoneName(x,y){
+  const third=x<35?'Defensive third':x<70?'Middle third':'Attacking third';
+  const lane=y<13.84?'Left wing':y<24.84?'Left half-space':y<43.16?'Central':y<54.16?'Right half-space':'Right wing';
+  return {lane,third,box:IN_BOX(x,y)?'Penalty area':(x<16.5&&y>13.84&&y<54.16?'Own penalty area':'')};
+}
+
+/* ---------- state + render ---------- */
+const state={player:'team',sample:'last5',R:2.1,enc:'std',zones:false,sel:null,filter:null,thr:.36,sexp:1,merge:true};
+let data=null, hexEls=[], hitEls=[], gridKey='', scales={};
+
+function current(){return state.player==='team'?TEAM:PLAYERS.find(p=>p.id===state.player)}
+
+function ensureGrid(){
+  const key=String(state.R);if(key===gridKey)return;gridKey=key;
+  const gH=document.getElementById('hexes'),gHit=document.getElementById('hits');
+  gH.innerHTML='';gHit.innerHTML='';
+  const grid=buildGrid(state.R);
+  hexEls=grid.map(c=>{const p=el('path',{d:UNIT_HEX,class:'hex'},gH);p.style.transform=`translate(${c.x}px,${c.y}px) scale(0)`;return p});
+  hitEls=grid.map((c,i)=>{const p=el('path',{d:hexPath(c.x,c.y,state.R),class:'hit'},gHit);p.dataset.i=i;return p});
+  state.sel=null;
+}
+
+function render(){
+  ensureGrid();
+  const p=current();
+  data=state.player==='team'?generateTeam(state.sample,state.R):generate(p,state.sample,state.R);
+  const {cells,n}=data;
+  const t90=cells.map(c=>c.t/n);
+  const maxT=Math.max(1/n,quantile(t90.filter(v=>v>0),.97));
+  const maxC=Math.max(...cells.map(c=>c.cov));
+  scales={maxT,maxC};
+  const SMIN=.14;
+  const sizeOf=f=>SMIN+(1-SMIN)*Math.pow(Math.max(0,Math.min(1,f)),state.sexp);
+  const swap=state.enc==='swap';
+  cells.forEach((c,i)=>{
+    const tN=Math.min(1,c.t/n/maxT), cN=c.cov/maxC;
+    let size, fill, metric;
+    const show=c.t>0&&tN>=state.thr&&cN>=.05;
+    const tC=Math.max(0,(tN-state.thr)/(1-state.thr));
+    if(!swap){size=show?cN:0;metric=tC}
+    else{size=show?tN:0;metric=cN}
+    c._metric=metric;c._size=size;c._show=show;
+  });
+  const vis=cells.filter(c=>c._show).map(c=>c._size);
+  const vmin=vis.length?Math.min(...vis):0, vmax=vis.length?quantile(vis,.95):1;
+  Object.assign(scales,{vmin,vmax,sizeOf});
+  cells.forEach(c=>{c._s=c._show?sizeOf(vmax>vmin?(c._size-vmin)/(vmax-vmin):1):0;c._merged=false});
+  // merge mode: only big hexes that touch another big hex fill their cell and join into a blob;
+  // inside a blob, colors are blended with blob neighbours for a gradient. Small hexes are untouched.
+  if(state.merge){
+    const BIG=.72, d2=(Math.sqrt(3)*state.R*1.05)**2;
+    const big=cells.filter(c=>c._s>=BIG);
+    const nb=c=>big.filter(o=>o!==c&&(o.x-c.x)**2+(o.y-c.y)**2<=d2);
+    for(const c of big){c._nb=nb(c);c._merged=c._nb.length>0}
+  }
+  // blobs: a blurred color field clipped to the union of merged hex outlines -> continuous gradient, crisp hex edges
+  const merged=cells.filter(c=>c._merged);
+  document.getElementById('blobClip').innerHTML=merged.map(c=>`<path d="${hexPath(c.x,c.y,state.R*1.02)}"/>`).join('');
+  document.getElementById('blobField').innerHTML=merged.map(c=>`<circle cx="${c.x.toFixed(2)}" cy="${c.y.toFixed(2)}" r="${(state.R*1.15).toFixed(2)}" fill="${grayOf(c._metric)}"/>`).join('');
+  document.getElementById('fBlendStd').setAttribute('stdDeviation',(state.R*.75).toFixed(2));
+  cells.forEach((c,i)=>{
+    const h=hexEls[i];
+    h.style.visibility=c._merged?'hidden':'';
+    h.style.transform=`translate(${c.x}px,${c.y}px) scale(${(c._merged?1.02:c._s*.94)*state.R})`;
+    h.style.fill=rampColor(c._metric);
+  });
+  applyFilter();
+  renderHeader(p);renderLegend();renderMarkers();renderDetail();
+  document.getElementById('zones').style.display=state.zones?'':'none';
+}
+
+function applyFilter(){
+  // while isolating a color step, the blob gradient is hidden and merged cells show as individual hexes
+  const f=state.filter;
+  document.getElementById('blobs').style.opacity=f?0:1;
+  data.cells.forEach((c,i)=>{
+    const inBin=!f||(c._metric>=f[0]&&c._metric<f[1]+1e-9&&c._size>0);
+    hexEls[i].style.opacity=inBin?1:.08;
+    if(c._merged)hexEls[i].style.visibility=f?'':'hidden';
+  });
+}
+
+const fmt=(v,d=0)=>v.toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+function coreArea(cells,R){
+  const s=[...cells].map(c=>c.cov).sort((a,b)=>b-a);let a=0,k=0;while(a<.8&&k<s.length){a+=s[k++]}
+  return k*(3*Math.sqrt(3)/2)*R*R;
+}
+function renderHeader(p){
+  document.getElementById('pName').textContent=(p.num?`#${p.num}  `:'')+p.name;
+  document.getElementById('pPos').textContent=p.pos+' · '+SAMPLES[state.sample].label;
+  const {cells,n,N}=data;
+  const ok=cells.reduce((s,c)=>s+c.ok,0);
+  const peak=cells.reduce((b,c)=>c.t>b.t?c:b,cells[0]);
+  const z=zoneName(peak.x,peak.y);
+  const isTeam=state.player==='team';
+  const dist=isTeam?PLAYERS.reduce((s,q)=>s+q.dist,0):p.dist;
+  const items=[
+    ['Touches',fmt(N)],
+    ['Per 90',fmt(N/n,n>1?1:0)],
+    ['Success',fmt(ok/N*100,1)+'%'],
+    [isTeam?'Avg core area':'Core area',fmt(isTeam?PLAYERS.reduce((s,q)=>s+coreArea(generate(q,state.sample,state.R).cells,state.R),0)/PLAYERS.length:coreArea(cells,state.R))+' m²'],
+    ['Distance / 90',fmt(dist,1)+' km'],
+    ['Peak zone',z.lane],
+  ];
+  document.getElementById('stats').innerHTML=items.map(([k,v])=>`<div class="stat"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+  document.getElementById('desc').textContent=p.desc;
+}
+
+function renderLegend(){
+  const swap=state.enc==='swap';
+  document.getElementById('colorTitle').innerHTML=swap?'<b>Color</b> · Coverage (relative to peak)':'<b>Color</b> · Touches per 90 in hex';
+  document.getElementById('sizeTitle').innerHTML=swap?'<b>Size</b> · Touches per 90 in hex':'<b>Size</b> · Coverage (share of on-pitch time)';
+  const bins=12, ramp=document.getElementById('ramp');
+  ramp.innerHTML='';
+  for(let b=0;b<bins;b++){
+    const d=document.createElement('div');d.style.background=rampColor((b+.5)/bins);
+    const lo=b/bins,hi=(b+1)/bins;
+    d.onmouseenter=()=>{state.filter=[b===0?0.0001:lo,b===bins-1?1:hi];applyFilter()};
+    d.onmouseleave=()=>{state.filter=null;applyFilter()};
+    ramp.appendChild(d);
+  }
+  const {maxT,maxC}=scales;
+  const lo=maxT*state.thr;
+  const lab=swap?['0',fmt(maxC*100*.5,1)+'%',fmt(maxC*100,1)+'%+']:[fmt(lo,1),fmt((lo+maxT)/2,1),fmt(maxT,1)+'+'];
+  document.getElementById('rampLab').innerHTML=lab.map(s=>`<span>${s}</span>`).join('');
+  const sizes=document.getElementById('sizes');
+  const steps=[0,.5,1], {vmin,vmax,sizeOf}=scales;
+  sizes.innerHTML=steps.map(f=>{
+    const r=13*sizeOf(f), v=vmin+(vmax-vmin)*f;
+    const label=(swap?fmt(maxT*v,1)+' t/90':fmt(maxC*v*100,1)+'% time')+(f===1?'+':'');
+    return`<figure><svg width="30" height="30" viewBox="-15 -15 30 30"><path d="${hexPath(0,0,r)}" fill="var(--ink-3)"/></svg>${label}</figure>`;
+  }).join('');
+}
+
+function renderMarkers(){
+  const g=document.getElementById('markers');g.innerHTML='';
+  const list=state.player==='team'?PLAYERS:[current()];
+  for(const p of list){
+    const cells=generate(p,state.sample,state.R).cells;
+    let sx=0,sy=0,s=0;for(const c of cells){sx+=c.x*c.t;sy+=c.y*c.t;s+=c.t}
+    const m=el('g',{class:'marker'},g);m.style.transform=`translate(${sx/s}px,${sy/s}px)`;
+    el('circle',{r:1.55},m);const t=el('text',{},m);t.textContent=p.num;
+  }
+}
+
+const ACT=[['pass','Pass','#5b8def'],['carry','Carry','#9b6bd6'],['shot','Shot','#d9442a'],['def','Defensive','#8d8d88']];
+function renderDetail(){
+  const box=document.getElementById('detail'),sel=document.getElementById('sel');
+  if(state.sel==null){box.innerHTML='<div class="detail-empty">Click a hex on the pitch to inspect that zone.</div>';sel.style.display='none';return}
+  const c=data.cells[state.sel],{n}=data;
+  sel.setAttribute('d',hexPath(c.x,c.y,state.R));sel.style.display='';
+  const z=zoneName(c.x,c.y);
+  const ranked=[...data.cells].sort((a,b)=>b.t-a.t).findIndex(o=>o===c)+1;
+  const covRank=[...data.cells].sort((a,b)=>b.cov-a.cov).findIndex(o=>o===c)+1;
+  const tot=c.t||1;
+  box.innerHTML=`
+    <p class="zone-name">${z.lane}</p>
+    <div class="zone-sub">${z.third}${z.box?' · '+z.box:''} · x ${fmt(c.x,1)} m, y ${fmt(c.y,1)} m</div>
+    <div class="kv">
+      <div><div class="k">Touches</div><div class="v">${c.t}<small>${n>1?fmt(c.t/n,2)+' /90':''}</small></div></div>
+      <div><div class="k">Coverage</div><div class="v">${fmt(c.cov*100,2)}%<small>${fmt(c.cov*90,1)} min/90</small></div></div>
+      <div><div class="k">Touch rank</div><div class="v">#${c.t?ranked:'–'}<small>of ${data.cells.length}</small></div></div>
+      <div><div class="k">Success</div><div class="v">${c.t?fmt(c.ok/c.t*100,0)+'%':'–'}</div></div>
+    </div>
+    <div class="k" style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)">Action mix</div>
+    <div class="stack">${c.t?ACT.map(([k,,col])=>`<div style="width:${c[k]/tot*100}%;background:${col}"></div>`).join(''):''}</div>
+    <div class="acts">${ACT.map(([k,l,col])=>`<span><i style="background:${col}"></i>${l} ${c[k]}</span>`).join('')}</div>
+    <div class="hint">${insight(c,ranked,covRank)}</div>
+    <button class="clear" id="clearSel">Clear selection</button>`;
+  document.getElementById('clearSel').onclick=()=>{state.sel=null;renderDetail()};
+}
+function insight(c,tr,cr){
+  const N=data.cells.length,hiT=c.t&&tr<=N*.08,hiC=cr<=N*.08,loT=!c.t||tr>N*.3;
+  if(hiT&&hiC)return'Home ground: high time and high involvement.';
+  if(hiC&&loT)return'Occupied but quiet — positional or off-ball duty here.';
+  if(hiT&&!hiC)return'Arrives and acts: brief visits with lots of ball contact.';
+  if(!c.t)return'No touches recorded in this hex.';
+  return'Secondary zone.';
+}
+
+/* ---------- tooltip + interaction ---------- */
+const tip=document.getElementById('tip'),wrap=document.getElementById('pitchwrap'),svg=document.getElementById('pitch');
+document.getElementById('hits').addEventListener('mousemove',e=>{
+  const i=e.target.dataset.i;if(i==null)return;
+  const c=data.cells[i],z=zoneName(c.x,c.y),n=data.n;
+  tip.innerHTML=`<div class="z">${z.third} · ${z.lane}</div>Touches <b>${c.t}</b>${n>1?` (${fmt(c.t/n,2)}/90)`:''} · Coverage <b>${fmt(c.cov*100,2)}%</b>`;
+  const r=wrap.getBoundingClientRect();
+  let x=e.clientX-r.left;x=Math.max(110,Math.min(r.width-110,x));
+  tip.style.left=x+'px';tip.style.top=(e.clientY-r.top)+'px';tip.style.opacity=1;
+});
+document.getElementById('hits').addEventListener('mouseleave',()=>tip.style.opacity=0);
+document.getElementById('hits').addEventListener('click',e=>{
+  const i=e.target.dataset.i;if(i==null)return;
+  state.sel=state.sel===+i?null:+i;renderDetail();
+});
+
+function seg(id,cb){
+  const s=document.getElementById(id);
+  s.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    s.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));cb(b.dataset.v)});
+}
+seg('sampleSeg',v=>{state.sample=v;render()});
+seg('resSeg',v=>{state.R=+v;render()});
+seg('encSeg',v=>{state.enc=v;render()});
+seg('zoneSeg',v=>{state.zones=v==='on';render()});
+seg('shadowSeg',v=>document.getElementById('heat').setAttribute('filter',v==='on'?'url(#fShadow)':''));
+seg('mergeSeg',v=>{state.merge=v==='on';render()});
+seg('sizeSeg',v=>{state.sexp=+v;render()});
+document.getElementById('thr').addEventListener('input',e=>{state.thr=+e.target.value;render()});
+seg('themeSeg',v=>{document.documentElement.dataset.theme=v;render()});
+
+const pWrap=document.getElementById('players');
+for(const p of[TEAM,...PLAYERS]){
+  const b=document.createElement('button');b.className='ptab'+(p.id===state.player?' on':'');
+  b.innerHTML=`<span class="n">${p.num||'XI'}</span>${p.id==='team'?'Team':p.name.split(' ').pop()}<span style="color:var(--ink-3);font-size:11px">${p.id==='team'?'':p.pos.split(' ').map(w=>w[0]).join('').toUpperCase()}</span>`;
+  b.onclick=()=>{state.player=p.id;state.sel=null;state.thr=p.id==='team'?.36:.16;document.getElementById('thr').value=state.thr;pWrap.querySelectorAll('.ptab').forEach(x=>x.classList.toggle('on',x===b));render()};
+  pWrap.appendChild(b);
+}
+
+// reading guide quadrants
+document.getElementById('quad').innerHTML=[
+  ['Big · red','Home ground — lives here and sees the ball.',13,RAMP[7]],
+  ['Big · blue','Occupied but quiet — positional duty.',13,RAMP[0]],
+  ['Small · red','Arrives and acts — late runs, box touches.',6,RAMP[6]],
+  ['Small · blue','Passing through, little involvement.',6,RAMP[1]],
+].map(([t,d,r,col])=>`<div><svg width="28" height="28" viewBox="-14 -14 28 28"><path d="${hexPath(0,0,r)}" fill="${col}"/></svg><span><b>${t}</b>${d}</span></div>`).join('');
+
+drawPitch();
+document.getElementById('fRamp').innerHTML=['R','G','B'].map((ch,k)=>`<feFunc${ch} type="table" tableValues="${RAMP_RGB.map(c=>(c[k]/255).toFixed(3)).join(' ')}"/>`).join('');
+render();
+</script>
+</body>
+</html>
