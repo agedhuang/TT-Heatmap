@@ -143,8 +143,8 @@ dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
           <div class="seg" id="zoneSeg"><button data-v="off" class="on">Off</button><button data-v="on">On</button></div></div>
         <div class="ctl"><label>Merge</label>
           <div class="seg" id="mergeSeg"><button data-v="off">Off</button><button data-v="on" class="on">On</button></div></div>
-        <div class="ctl"><label>Shadow</label>
-          <div class="seg" id="shadowSeg"><button data-v="off">Off</button><button data-v="on" class="on">On</button></div></div>
+        <div class="ctl"><label>Glow</label>
+          <div class="seg" id="shadowSeg"><button data-v="off" class="on">Off</button><button data-v="on">On</button></div></div>
         <div class="ctl"><label>Size contrast</label>
           <div class="seg" id="sizeSeg"><button data-v="0.6">Low</button><button data-v="1" class="on">Mid</button><button data-v="1.7">High</button></div></div>
         <div class="ctl"><label for="thr">Threshold</label>
@@ -173,7 +173,7 @@ dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
             </filter>
             <clipPath id="blobClip"></clipPath>
           </defs>
-          <g id="heat" filter="url(#fShadow)">
+          <g id="heat">
             <g id="blobs" clip-path="url(#blobClip)" style="transition:opacity .35s"><g id="blobField" filter="url(#fBlend)"></g></g>
             <g id="hexes"></g>
           </g>
