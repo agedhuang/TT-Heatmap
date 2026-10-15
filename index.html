@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Soccer Hex Heatmap</title>
+<title>Soccer Emoji Heatmap</title>
 <style>
 :root{
   --bg:#ffffff; --panel:#f4f4f2; --ink:#121212; --ink-2:#5c5c58; --ink-3:#8d8d88;
@@ -61,7 +61,7 @@ svg#pitch{width:100%;height:auto;display:block}
 .lines .spot{fill:var(--line);stroke:none}
 .zones line{stroke:var(--pitch-ink);stroke-width:.12;stroke-dasharray:.8 .8;opacity:.8}
 .zones text{fill:var(--pitch-ink);font-size:1.5px;letter-spacing:.1px;text-transform:uppercase}
-.hex{transition:transform .55s cubic-bezier(.2,.7,.2,1),fill .55s,opacity .35s}
+.emo{transition:transform .55s cubic-bezier(.2,.7,.2,1),opacity .35s}
 .hit{fill:transparent;cursor:pointer}
 .hit:hover{stroke:#fff;stroke-width:.25;vector-effect:non-scaling-stroke}
 .sel{fill:none;stroke:#fff;stroke-width:2;vector-effect:non-scaling-stroke;pointer-events:none}
@@ -79,20 +79,21 @@ svg#pitch{width:100%;height:auto;display:block}
 /* sidebar */
 aside{display:flex;flex-direction:column;gap:22px}
 .card h3{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px;font-weight:600;border-bottom:1px solid var(--rule);padding-bottom:6px}
-.ramp{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0}
-.ramp div{width:16px;height:16px;border-radius:50%;transition:transform .15s}
-.ramp div:hover{transform:scale(1.3)}
-.ramp-lab{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-2);margin-top:4px;font-variant-numeric:tabular-nums}
+.ramp{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:2px 0}
+.ramp figure{margin:0;text-align:center;font-size:11px;color:var(--ink-2);cursor:pointer;font-variant-numeric:tabular-nums}
+.ramp img{display:block;width:36px;height:36px;margin:0 auto 4px;transition:transform .15s}
+.ramp figure:hover img{transform:scale(1.2)}
 .leg-title{font-size:12.5px;margin:0 0 6px}
 .leg-title b{font-weight:700}
 .sizes{display:flex;align-items:flex-end;gap:16px;margin-top:4px}
 .sizes figure{margin:0;text-align:center;font-size:11px;color:var(--ink-2)}
 .sizes svg{display:block;margin:0 auto 3px}
+.sizes img{display:block;margin:0 auto 3px}
 .hint{font-size:11.5px;color:var(--ink-3);margin-top:8px}
 .quad{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .quad div{background:var(--panel);border-radius:6px;padding:8px;font-size:11.5px;color:var(--ink-2);display:flex;gap:8px;align-items:flex-start}
 .quad div b{color:var(--ink);display:block;font-size:12px}
-.quad svg{flex:none;margin-top:2px}
+.quad .ic{flex:none;width:28px;height:28px;display:grid;place-items:center;margin-top:2px}
 dl.defs{margin:0}
 dl.defs dt{font-weight:700;font-size:12.5px;margin-top:8px}
 dl.defs dt:first-child{margin-top:0}
@@ -117,7 +118,7 @@ dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
   <div class="toprow">
     <header>
       <h1>Where the ball finds them — and where they live</h1>
-      <p>Hex heatmap of one team, built from simulated match data. <b>Color</b> encodes touches in a zone; <b>size</b> encodes coverage — how much on-pitch time the player spends there. Attacking left → right.</p>
+      <p>Emoji heatmap of one team, built from simulated match data. <b>Emoji</b> encodes touches in a zone, from <img src="src/Emoji-1.png" alt="skull" style="width:1.2em;height:1.2em;vertical-align:-.25em"> to <img src="src/Emoji.png" alt="fire" style="width:1.2em;height:1.2em;vertical-align:-.25em">; <b>size</b> encodes coverage — how much on-pitch time the player spends there. Attacking left → right.</p>
     </header>
     <div class="ctl">
       <label>Theme</label>
@@ -135,16 +136,14 @@ dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
       <div class="controls">
         <div class="ctl"><label>Sample</label>
           <div class="seg" id="sampleSeg"><button data-v="match">Last match</button><button data-v="last5" class="on">Last 5</button><button data-v="season">Season</button></div></div>
-        <div class="ctl"><label>Hex</label>
-          <div class="seg" id="resSeg"><button data-v="1.5">S</button><button data-v="2.1" class="on">M</button><button data-v="3">L</button></div></div>
+        <div class="ctl"><label>Grid</label>
+          <div class="seg" id="resSeg"><button data-v="2.6">S</button><button data-v="3.6" class="on">M</button><button data-v="5.2">L</button></div></div>
         <div class="ctl"><label>Encoding</label>
-          <div class="seg" id="encSeg"><button data-v="std" class="on">Color Touch · Size Cov.</button><button data-v="swap">Swap</button></div></div>
+          <div class="seg" id="encSeg"><button data-v="std" class="on">Emoji Touch · Size Cov.</button><button data-v="swap">Swap</button></div></div>
+        <div class="ctl"><label>Size</label>
+          <div class="seg" id="uniSeg"><button data-v="var" class="on">Varied</button><button data-v="uni">Uniform</button></div></div>
         <div class="ctl"><label>Zones</label>
           <div class="seg" id="zoneSeg"><button data-v="off" class="on">Off</button><button data-v="on">On</button></div></div>
-        <div class="ctl"><label>Merge</label>
-          <div class="seg" id="mergeSeg"><button data-v="off">Off</button><button data-v="on" class="on">On</button></div></div>
-        <div class="ctl"><label>Glow</label>
-          <div class="seg" id="shadowSeg"><button data-v="off" class="on">Off</button><button data-v="on">On</button></div></div>
         <div class="ctl"><label>Size contrast</label>
           <div class="seg" id="sizeSeg"><button data-v="0.6">Low</button><button data-v="1" class="on">Mid</button><button data-v="1.7">High</button></div></div>
         <div class="ctl"><label for="thr">Threshold</label>
@@ -152,31 +151,9 @@ dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
       </div>
 
       <div class="pitchwrap" id="pitchwrap">
-        <svg id="pitch" viewBox="-3 -3.5 111 76" aria-label="Soccer pitch hex heatmap">
+        <svg id="pitch" viewBox="-3 -3.5 111 76" aria-label="Soccer pitch emoji heatmap">
           <rect class="pitch-bg" x="-3" y="-3.5" width="111" height="76" rx="1.6"/>
-          <defs>
-            <!-- subtle colored halo + soft drop shadow -->
-            <filter id="fShadow" filterUnits="userSpaceOnUse" x="-10" y="-10" width="125" height="90">
-              <feGaussianBlur in="SourceGraphic" stdDeviation=".45" result="halo"/>
-              <feComponentTransfer in="halo" result="haloA"><feFuncA type="linear" slope=".55"/></feComponentTransfer>
-              <feOffset in="SourceAlpha" dy=".25" result="off"/>
-              <feGaussianBlur in="off" stdDeviation=".3" result="offB"/>
-              <feComponentTransfer in="offB" result="drop"><feFuncA type="linear" slope=".6"/></feComponentTransfer>
-              <feMerge><feMergeNode in="drop"/><feMergeNode in="haloA"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-            <!-- blob gradient: field is drawn in grayscale (gray = value), blurred, alpha forced opaque,
-                 then mapped through the color ramp so blends stay on-ramp instead of mixing RGB -->
-            <filter id="fBlend" filterUnits="userSpaceOnUse" x="-10" y="-10" width="125" height="90" color-interpolation-filters="sRGB">
-              <feGaussianBlur id="fBlendStd" stdDeviation="1.4"/>
-              <feComponentTransfer><feFuncA type="linear" slope="8"/></feComponentTransfer>
-              <feComponentTransfer id="fRamp"></feComponentTransfer>
-            </filter>
-            <clipPath id="blobClip"></clipPath>
-          </defs>
-          <g id="heat">
-            <g id="blobs" clip-path="url(#blobClip)" style="transition:opacity .35s"><g id="blobField" filter="url(#fBlend)"></g></g>
-            <g id="hexes"></g>
-          </g>
+          <g id="heat"></g>
           <g class="lines" id="lines"></g>
           <g class="zones" id="zones" style="display:none"></g>
           <g id="markers"></g>
@@ -197,15 +174,16 @@ dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
 
       <section class="card">
         <h3>Legend</h3>
-        <p class="leg-title" id="colorTitle"><b>Color</b> · Touches per 90 in hex</p>
+        <p class="leg-title" id="colorTitle"><b>Emoji</b> · Touches per 90 in cell</p>
         <div class="ramp" id="ramp"></div>
-        <div class="ramp-lab" id="rampLab"></div>
-        <p class="leg-title" style="margin-top:14px" id="sizeTitle"><b>Size</b> · Coverage (share of on-pitch time)</p>
-        <div class="sizes" id="sizes"></div>
-        <div class="hint">Hover a color step to isolate those zones. Click any hex to pin it.</div>
+        <div id="sizeLeg">
+          <p class="leg-title" style="margin-top:14px" id="sizeTitle"><b>Size</b> · Coverage (share of on-pitch time)</p>
+          <div class="sizes" id="sizes"></div>
+        </div>
+        <div class="hint">Hover an emoji to isolate those zones. Click any cell to pin it.</div>
       </section>
 
-      <section class="card">
+      <section class="card" id="quadCard">
         <h3>How to read it</h3>
         <div class="quad" id="quad"></div>
       </section>
@@ -213,9 +191,9 @@ dl.defs dd{margin:2px 0 0;font-size:12px;color:var(--ink-2)}
       <section class="card">
         <h3>Attributes</h3>
         <dl class="defs">
-          <dt>Touch</dt><dd>Every on-ball event logged at its pitch location — passes, receptions, carries, shots, tackles, clearances. Counted per hex, normalised per 90 minutes.</dd>
-          <dt>Coverage</dt><dd>Share of the player's on-pitch time their tracked position sat inside the hex (from 25 Hz positional data). Only zones with touches above the threshold (relative to the player's busiest hex) are drawn, so the map shows where the player is active rather than filling the pitch.</dd>
-          <dt>Core area</dt><dd>Smallest set of hexes holding 80% of the player's time, in m².</dd>
+          <dt>Touch</dt><dd>Every on-ball event logged at its pitch location — passes, receptions, carries, shots, tackles, clearances. Counted per cell, normalised per 90 minutes.</dd>
+          <dt>Coverage</dt><dd>Share of the player's on-pitch time their tracked position sat inside the cell (from 25 Hz positional data). Only zones with touches above the threshold (relative to the player's busiest cell) are drawn, so the map shows where the player is active rather than filling the pitch.</dd>
+          <dt>Core area</dt><dd>Smallest set of cells holding 80% of the player's time, in m².</dd>
           <dt>Avg. position</dt><dd>Touch-weighted centroid, shown as the numbered marker.</dd>
         </dl>
       </section>
@@ -230,7 +208,7 @@ const L = 105, W = 68;
 const PLAYERS = [
   {id:'gk', num:1,  name:'Mateo Okafor',  pos:'Goalkeeper',          tp90:36, dist:5.4,  acc:79,
    a:[[5.5,34,3,6,1],[14,34,4,11,.25]],
-   desc:'Rarely leaves the box. Distribution clusters on the edge of the area; the faint wide hexes are sweeping runs behind a high line.'},
+   desc:'Rarely leaves the box. Distribution clusters on the edge of the area; the scattered cells further out are sweeping runs behind a high line.'},
   {id:'lb', num:3,  name:'Jonas Varga',   pos:'Left back',            tp90:72, dist:10.9, acc:84,
    a:[[34,7,13,4.5,1],[62,5,12,3.5,.8],[86,9,7,5,.35]],
    desc:'Owns the entire left touchline. Coverage runs long and thin; the hot spots in the final third are overlapping crosses.'},
@@ -248,7 +226,7 @@ const PLAYERS = [
    desc:'Holds the width high and right. Coverage is wide; touches spike at the byline and on the cut-inside toward the far post.'},
   {id:'st', num:9,  name:'Elias Moreau',  pos:'Striker',              tp90:32, dist:9.9,  acc:71,
    a:[[93,34,5,7,1],[78,34,7,9,.55],[100,34,2.5,4.5,.5]],
-   desc:'Few touches, all of them close to goal. Big pale hexes at the halfway line are pressing duty; the small red ones are the six-yard box.'},
+   desc:'Few touches, all of them close to goal. Big quiet cells at the halfway line are pressing duty; the small fires are the six-yard box.'},
 ];
 const TEAM = {id:'team', num:'', name:'Team overview', pos:'Seven tracked players', desc:'Combined footprint of the tracked players. The side builds through the centre and attacks down the left; the right is used for width rather than possession.'};
 const SAMPLES = {match:{n:1,label:'Last match'}, last5:{n:5,label:'Last 5'}, season:{n:38,label:'Season'}};
@@ -260,13 +238,13 @@ const dens=(a,x,y)=>a.reduce((s,[ax,ay,sx,sy,w])=>s+w*Math.exp(-((x-ax)**2/(2*sx
 
 const IN_BOX=(x,y)=>x>88.5&&y>13.84&&y<54.16;
 
+// square grid of side R, centred on the pitch — rows and columns like characters on a terminal
 function buildGrid(R){
-  const w=Math.sqrt(3)*R, h=1.5*R;
-  const nR=Math.floor((W-R*.2)/h)+1, nC=Math.floor((L-w*.5)/w)+1;
-  const y0=(W-(nR-1)*h)/2, x0=(L-(nC-1)*w-w/2)/2;
+  const nR=Math.floor(W/R), nC=Math.floor(L/R);
+  const y0=(W-(nR-1)*R)/2, x0=(L-(nC-1)*R)/2;
   const cells=[];
   for(let r=0;r<nR;r++)for(let c=0;c<nC;c++){
-    cells.push({i:cells.length,x:x0+c*w+(r%2?w/2:0),y:y0+r*h});
+    cells.push({i:cells.length,x:x0+c*R,y:y0+r*R});
   }
   return cells;
 }
@@ -313,16 +291,15 @@ function generateTeam(sampleKey,R){
   return {cells,n,N:cells.reduce((s,c)=>s+c.t,0),R};
 }
 
-/* ---------- color ---------- */
-const RAMP=['#3f51c1','#4b7fd6','#3fbff2','#74cbe3','#f7d93b','#f39a33','#ec6a2e','#e5332a'];
-function hex2rgb(h){return[1,3,5].map(i=>parseInt(h.slice(i,i+2),16))}
-const RAMP_RGB=RAMP.map(hex2rgb);
-function rampColor(t){
-  t=Math.max(0,Math.min(1,t))*(RAMP.length-1);
-  const i=Math.min(RAMP.length-2,Math.floor(t)),f=t-i,a=RAMP_RGB[i],b=RAMP_RGB[i+1];
-  return`rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*f)).join(',')})`;
-}
-const grayOf=t=>{const v=Math.round(Math.max(0,Math.min(1,t))*255);return`rgb(${v},${v},${v})`};
+/* ---------- emoji scale ---------- */
+// four equal-width steps, low → high
+const EMOJI=[
+  {src:'src/Emoji-1.png',name:'Skull'},
+  {src:'src/Emoji-2.png',name:'Coffee'},
+  {src:'src/Emoji-3.png',name:'Cool'},
+  {src:'src/Emoji.png',name:'Fire'},
+];
+const levelOf=t=>Math.min(EMOJI.length-1,Math.floor(Math.max(0,t)*EMOJI.length));
 const quantile=(arr,q)=>{if(!arr.length)return 1;const s=[...arr].sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.floor(q*(s.length-1)))]};
 
 /* ---------- pitch drawing ---------- */
@@ -348,8 +325,7 @@ function drawPitch(){
   for(const y of[13.84,24.84,43.16,54.16])el('line',{x1:0,y1:y,x2:L,y2:y},z);
   [['DEFENSIVE THIRD',17.5],['MIDDLE THIRD',52.5],['ATTACKING THIRD',87.5]].forEach(([t,x])=>{const e=el('text',{x,y:-1,'text-anchor':'middle'},z);e.textContent=t});
 }
-const UNIT_HEX=(()=>{let d='';for(let i=0;i<6;i++){const a=Math.PI/180*(30+60*i);d+=(i?'L':'M')+Math.cos(a).toFixed(4)+' '+Math.sin(a).toFixed(4)}return d+'Z'})();
-const hexPath=(x,y,R)=>{let d='';for(let i=0;i<6;i++){const a=Math.PI/180*(30+60*i);d+=(i?'L':'M')+(x+R*Math.cos(a)).toFixed(3)+' '+(y+R*Math.sin(a)).toFixed(3)}return d+'Z'};
+const sqPath=(x,y,R)=>{const h=R/2;return`M${(x-h).toFixed(3)} ${(y-h).toFixed(3)}h${R}v${R}h${-R}Z`};
 
 function zoneName(x,y){
   const third=x<35?'Defensive third':x<70?'Middle third':'Attacking third';
@@ -358,18 +334,18 @@ function zoneName(x,y){
 }
 
 /* ---------- state + render ---------- */
-const state={player:'team',sample:'last5',R:2.1,enc:'std',zones:false,sel:null,filter:null,thr:.36,sexp:1,merge:true};
-let data=null, hexEls=[], hitEls=[], gridKey='', scales={};
+const state={player:'team',sample:'last5',R:3.6,enc:'std',uniform:false,zones:false,sel:null,filter:null,thr:.36,sexp:1};
+let data=null, cellEls=[], hitEls=[], gridKey='', scales={};
 
 function current(){return state.player==='team'?TEAM:PLAYERS.find(p=>p.id===state.player)}
 
 function ensureGrid(){
   const key=String(state.R);if(key===gridKey)return;gridKey=key;
-  const gH=document.getElementById('hexes'),gHit=document.getElementById('hits');
+  const gH=document.getElementById('heat'),gHit=document.getElementById('hits');
   gH.innerHTML='';gHit.innerHTML='';
   const grid=buildGrid(state.R);
-  hexEls=grid.map(c=>{const p=el('path',{d:UNIT_HEX,class:'hex'},gH);p.style.transform=`translate(${c.x}px,${c.y}px) scale(0)`;return p});
-  hitEls=grid.map((c,i)=>{const p=el('path',{d:hexPath(c.x,c.y,state.R),class:'hit'},gHit);p.dataset.i=i;return p});
+  cellEls=grid.map(c=>{const p=el('image',{x:-.5,y:-.5,width:1,height:1,class:'emo'},gH);p.style.transform=`translate(${c.x}px,${c.y}px) scale(0)`;return p});
+  hitEls=grid.map((c,i)=>{const p=el('path',{d:sqPath(c.x,c.y,state.R),class:'hit'},gHit);p.dataset.i=i;return p});
   state.sel=null;
 }
 
@@ -397,25 +373,11 @@ function render(){
   const vis=cells.filter(c=>c._show).map(c=>c._size);
   const vmin=vis.length?Math.min(...vis):0, vmax=vis.length?quantile(vis,.95):1;
   Object.assign(scales,{vmin,vmax,sizeOf});
-  cells.forEach(c=>{c._s=c._show?sizeOf(vmax>vmin?(c._size-vmin)/(vmax-vmin):1):0;c._merged=false});
-  // merge mode: only big hexes that touch another big hex fill their cell and join into a blob;
-  // inside a blob, colors are blended with blob neighbours for a gradient. Small hexes are untouched.
-  if(state.merge){
-    const BIG=.72, d2=(Math.sqrt(3)*state.R*1.05)**2;
-    const big=cells.filter(c=>c._s>=BIG);
-    const nb=c=>big.filter(o=>o!==c&&(o.x-c.x)**2+(o.y-c.y)**2<=d2);
-    for(const c of big){c._nb=nb(c);c._merged=c._nb.length>0}
-  }
-  // blobs: a blurred color field clipped to the union of merged hex outlines -> continuous gradient, crisp hex edges
-  const merged=cells.filter(c=>c._merged);
-  document.getElementById('blobClip').innerHTML=merged.map(c=>`<path d="${hexPath(c.x,c.y,state.R*1.02)}"/>`).join('');
-  document.getElementById('blobField').innerHTML=merged.map(c=>`<circle cx="${c.x.toFixed(2)}" cy="${c.y.toFixed(2)}" r="${(state.R*1.15).toFixed(2)}" fill="${grayOf(c._metric)}"/>`).join('');
-  document.getElementById('fBlendStd').setAttribute('stdDeviation',(state.R*.75).toFixed(2));
+  cells.forEach(c=>{c._s=c._show?(state.uniform?1:sizeOf(vmax>vmin?(c._size-vmin)/(vmax-vmin):1)):0;c._lvl=levelOf(c._metric)});
   cells.forEach((c,i)=>{
-    const h=hexEls[i];
-    h.style.visibility=c._merged?'hidden':'';
-    h.style.transform=`translate(${c.x}px,${c.y}px) scale(${(c._merged?1.02:c._s*.94)*state.R})`;
-    h.style.fill=rampColor(c._metric);
+    const e=cellEls[i];
+    if(c._show)e.setAttribute('href',EMOJI[c._lvl].src);
+    e.style.transform=`translate(${c.x}px,${c.y}px) scale(${c._s*1.2*state.R})`;
   });
   applyFilter();
   renderHeader(p);renderLegend();renderMarkers();renderDetail();
@@ -423,20 +385,14 @@ function render(){
 }
 
 function applyFilter(){
-  // while isolating a color step, the blob gradient is hidden and merged cells show as individual hexes
   const f=state.filter;
-  document.getElementById('blobs').style.opacity=f?0:1;
-  data.cells.forEach((c,i)=>{
-    const inBin=!f||(c._metric>=f[0]&&c._metric<f[1]+1e-9&&c._size>0);
-    hexEls[i].style.opacity=inBin?1:.08;
-    if(c._merged)hexEls[i].style.visibility=f?'':'hidden';
-  });
+  data.cells.forEach((c,i)=>{cellEls[i].style.opacity=f==null||c._lvl===f?1:.08});
 }
 
 const fmt=(v,d=0)=>v.toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
 function coreArea(cells,R){
   const s=[...cells].map(c=>c.cov).sort((a,b)=>b-a);let a=0,k=0;while(a<.8&&k<s.length){a+=s[k++]}
-  return k*(3*Math.sqrt(3)/2)*R*R;
+  return k*R*R;
 }
 function renderHeader(p){
   document.getElementById('pName').textContent=(p.num?`#${p.num}  `:'')+p.name;
@@ -461,27 +417,29 @@ function renderHeader(p){
 
 function renderLegend(){
   const swap=state.enc==='swap';
-  document.getElementById('colorTitle').innerHTML=swap?'<b>Color</b> · Coverage (relative to peak)':'<b>Color</b> · Touches per 90 in hex';
-  document.getElementById('sizeTitle').innerHTML=swap?'<b>Size</b> · Touches per 90 in hex':'<b>Size</b> · Coverage (share of on-pitch time)';
-  const bins=12, ramp=document.getElementById('ramp');
-  ramp.innerHTML='';
-  for(let b=0;b<bins;b++){
-    const d=document.createElement('div');d.style.background=rampColor((b+.5)/bins);
-    const lo=b/bins,hi=(b+1)/bins;
-    d.onmouseenter=()=>{state.filter=[b===0?0.0001:lo,b===bins-1?1:hi];applyFilter()};
-    d.onmouseleave=()=>{state.filter=null;applyFilter()};
-    ramp.appendChild(d);
-  }
+  document.getElementById('colorTitle').innerHTML=swap?'<b>Emoji</b> · Coverage (relative to peak)':'<b>Emoji</b> · Touches per 90 in cell';
+  document.getElementById('sizeTitle').innerHTML=swap?'<b>Size</b> · Touches per 90 in cell':'<b>Size</b> · Coverage (share of on-pitch time)';
+  document.getElementById('sizeLeg').style.display=state.uniform?'none':'';
+  document.getElementById('quadCard').style.display=state.uniform?'none':'';
   const {maxT,maxC}=scales;
-  const lo=maxT*state.thr;
-  const lab=swap?['0',fmt(maxC*100*.5,1)+'%',fmt(maxC*100,1)+'%+']:[fmt(lo,1),fmt((lo+maxT)/2,1),fmt(maxT,1)+'+'];
-  document.getElementById('rampLab').innerHTML=lab.map(s=>`<span>${s}</span>`).join('');
+  // value at the lower edge of step k, in the metric's own units
+  const K=EMOJI.length, lo=maxT*state.thr;
+  const edge=k=>swap?fmt(maxC*100*k/K,1)+'%':fmt(lo+(maxT-lo)*k/K,1);
+  const ramp=document.getElementById('ramp');
+  ramp.innerHTML='';
+  EMOJI.forEach((e,k)=>{
+    const f=document.createElement('figure');
+    f.innerHTML=`<img src="${e.src}" alt="${e.name}">${k===K-1?edge(k)+'+':edge(k)+'–'+edge(k+1)}`;
+    f.onmouseenter=()=>{state.filter=k;applyFilter()};
+    f.onmouseleave=()=>{state.filter=null;applyFilter()};
+    ramp.appendChild(f);
+  });
   const sizes=document.getElementById('sizes');
   const steps=[0,.5,1], {vmin,vmax,sizeOf}=scales;
   sizes.innerHTML=steps.map(f=>{
-    const r=13*sizeOf(f), v=vmin+(vmax-vmin)*f;
+    const px=Math.round(30*sizeOf(f)), v=vmin+(vmax-vmin)*f;
     const label=(swap?fmt(maxT*v,1)+' t/90':fmt(maxC*v*100,1)+'% time')+(f===1?'+':'');
-    return`<figure><svg width="30" height="30" viewBox="-15 -15 30 30"><path d="${hexPath(0,0,r)}" fill="var(--ink-3)"/></svg>${label}</figure>`;
+    return`<figure><div style="height:30px;display:flex;align-items:flex-end;justify-content:center"><img src="${EMOJI[2].src}" width="${px}" height="${px}" alt=""></div>${label}</figure>`;
   }).join('');
 }
 
@@ -499,9 +457,9 @@ function renderMarkers(){
 const ACT=[['pass','Pass','#5b8def'],['carry','Carry','#9b6bd6'],['shot','Shot','#d9442a'],['def','Defensive','#8d8d88']];
 function renderDetail(){
   const box=document.getElementById('detail'),sel=document.getElementById('sel');
-  if(state.sel==null){box.innerHTML='<div class="detail-empty">Click a hex on the pitch to inspect that zone.</div>';sel.style.display='none';return}
+  if(state.sel==null){box.innerHTML='<div class="detail-empty">Click a cell on the pitch to inspect that zone.</div>';sel.style.display='none';return}
   const c=data.cells[state.sel],{n}=data;
-  sel.setAttribute('d',hexPath(c.x,c.y,state.R));sel.style.display='';
+  sel.setAttribute('d',sqPath(c.x,c.y,state.R));sel.style.display='';
   const z=zoneName(c.x,c.y);
   const ranked=[...data.cells].sort((a,b)=>b.t-a.t).findIndex(o=>o===c)+1;
   const covRank=[...data.cells].sort((a,b)=>b.cov-a.cov).findIndex(o=>o===c)+1;
@@ -527,7 +485,7 @@ function insight(c,tr,cr){
   if(hiT&&hiC)return'Home ground: high time and high involvement.';
   if(hiC&&loT)return'Occupied but quiet — positional or off-ball duty here.';
   if(hiT&&!hiC)return'Arrives and acts: brief visits with lots of ball contact.';
-  if(!c.t)return'No touches recorded in this hex.';
+  if(!c.t)return'No touches recorded in this cell.';
   return'Secondary zone.';
 }
 
@@ -555,9 +513,8 @@ function seg(id,cb){
 seg('sampleSeg',v=>{state.sample=v;render()});
 seg('resSeg',v=>{state.R=+v;render()});
 seg('encSeg',v=>{state.enc=v;render()});
+seg('uniSeg',v=>{state.uniform=v==='uni';render()});
 seg('zoneSeg',v=>{state.zones=v==='on';render()});
-seg('shadowSeg',v=>document.getElementById('heat').setAttribute('filter',v==='on'?'url(#fShadow)':''));
-seg('mergeSeg',v=>{state.merge=v==='on';render()});
 seg('sizeSeg',v=>{state.sexp=+v;render()});
 document.getElementById('thr').addEventListener('input',e=>{state.thr=+e.target.value;render()});
 seg('themeSeg',v=>{document.documentElement.dataset.theme=v;render()});
@@ -572,14 +529,13 @@ for(const p of[TEAM,...PLAYERS]){
 
 // reading guide quadrants
 document.getElementById('quad').innerHTML=[
-  ['Big · red','Home ground — lives here and sees the ball.',13,RAMP[7]],
-  ['Big · blue','Occupied but quiet — positional duty.',13,RAMP[0]],
-  ['Small · red','Arrives and acts — late runs, box touches.',6,RAMP[6]],
-  ['Small · blue','Passing through, little involvement.',6,RAMP[1]],
-].map(([t,d,r,col])=>`<div><svg width="28" height="28" viewBox="-14 -14 28 28"><path d="${hexPath(0,0,r)}" fill="${col}"/></svg><span><b>${t}</b>${d}</span></div>`).join('');
+  ['Big · fire','Home ground — lives here and sees the ball.',26,3],
+  ['Big · skull','Occupied but quiet — positional duty.',26,0],
+  ['Small · fire','Arrives and acts — late runs, box touches.',13,3],
+  ['Small · skull','Passing through, little involvement.',13,0],
+].map(([t,d,px,k])=>`<div><span class="ic"><img src="${EMOJI[k].src}" width="${px}" height="${px}" alt=""></span><span><b>${t}</b>${d}</span></div>`).join('');
 
 drawPitch();
-document.getElementById('fRamp').innerHTML=['R','G','B'].map((ch,k)=>`<feFunc${ch} type="table" tableValues="${RAMP_RGB.map(c=>(c[k]/255).toFixed(3)).join(' ')}"/>`).join('');
 render();
 </script>
 </body>
